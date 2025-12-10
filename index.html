@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>二進位特攻隊：解碼任務</title>
+    
+    <!-- 載入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 載入 React 和 ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- 載入 Babel 用於解析 JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Google Fonts (可選，增加美觀度) -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
+        }
+        /* 自定義動畫類別 */
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+        .animate-zoom-in {
+            animation: zoomIn 0.3s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes zoomIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-white">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- 圖示組件定義 (替代 lucide-react 依賴) ---
+        const IconBase = ({ children, size = 24, className = "" }) => (
+            <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                width={size} 
+                height={size} 
+                viewBox="0 0 24 24" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                className={className}
+            >
+                {children}
+            </svg>
+        );
+
+        const Trophy = (props) => <IconBase {...props}><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></IconBase>;
+        const Play = (props) => <IconBase {...props}><polygon points="5 3 19 12 5 21 5 3"/></IconBase>;
+        const CheckCircle = (props) => <IconBase {...props}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></IconBase>;
+        const XCircle = (props) => <IconBase {...props}><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></IconBase>;
+        const Download = (props) => <IconBase {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></IconBase>;
+        const RefreshCw = (props) => <IconBase {...props}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></IconBase>;
+        const Calculator = (props) => <IconBase {...props}><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></IconBase>;
+        const Binary = (props) => <IconBase {...props}><rect x="14" y="14" width="4" height="6" rx="2"/><rect x="6" y="4" width="4" height="6" rx="2"/><path d="M6 20h4"/><path d="M14 10h4"/><path d="M6 14h2v6"/><path d="M14 4h2v6"/></IconBase>;
+        const Zap = (props) => <IconBase {...props}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></IconBase>;
+        const User = (props) => <IconBase {...props}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></IconBase>;
+        const GraduationCap = (props) => <IconBase {...props}><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></IconBase>;
+        const Hash = (props) => <IconBase {...props}><line x1="4" x2="20" y1="9" y2="9"/><line x1="4" x2="20" y1="15" y2="15"/><line x1="10" x2="8" y1="3" y2="21"/><line x1="16" x2="14" y1="3" y2="21"/></IconBase>;
+
+        // --- 主應用程式 ---
+
+        const App = () => {
+            const [gameState, setGameState] = useState('registration'); // registration, intro, playing, feedback, finished
+            const [currentLevel, setCurrentLevel] = useState(1);
+            const [score, setScore] = useState(0);
+            const [currentQuestion, setCurrentQuestion] = useState(null);
+            const [userInputValue, setUserInputValue] = useState('');
+            const [history, setHistory] = useState([]);
+            const [lastCorrect, setLastCorrect] = useState(false);
+            
+            // 學生資訊狀態
+            const [studentClass, setStudentClass] = useState('');
+            const [seatNumber, setSeatNumber] = useState('');
+            const [studentName, setStudentName] = useState('');
+
+            const canvasRef = useRef(null);
+            const TOTAL_LEVELS = 10;
+
+            // 產生題目
+            const generateQuestion = (level) => {
+                let bitCount;
+                // 難度曲線
+                if (level <= 3) bitCount = Math.floor(Math.random() * 2) + 3; // 3-4 bits
+                else if (level <= 7) bitCount = Math.floor(Math.random() * 2) + 5; // 5-6 bits
+                else bitCount = Math.floor(Math.random() * 2) + 7; // 7-8 bits (Max 8)
+
+                // 確保不會產生與上一題完全相同的數字 (簡單處理，不嚴格強制)
+                const maxVal = Math.pow(2, bitCount) - 1;
+                const minVal = Math.pow(2, bitCount - 1);
+                const decimalValue = Math.floor(Math.random() * (maxVal - minVal + 1)) + minVal;
+                const binaryString = decimalValue.toString(2);
+
+                return {
+                    level,
+                    bits: bitCount,
+                    binaryString,
+                    decimalValue
+                };
+            };
+
+            const handleRegistration = (e) => {
+                e.preventDefault();
+                if (studentClass && seatNumber && studentName) {
+                    setGameState('intro');
+                }
+            };
+
+            const startGame = () => {
+                setScore(0);
+                setCurrentLevel(1);
+                setHistory([]);
+                setUserInputValue('');
+                setCurrentQuestion(generateQuestion(1));
+                setGameState('playing');
+            };
+
+            const handleSubmit = (e) => {
+                if (e) e.preventDefault();
+                if (!currentQuestion || !userInputValue) return;
+
+                const userAns = parseInt(userInputValue, 10);
+                const isCorrect = userAns === currentQuestion.decimalValue;
+
+                if (isCorrect) {
+                    setScore(s => s + 10);
+                }
+
+                setLastCorrect(isCorrect);
+                setHistory(prev => [...prev, {
+                    question: currentQuestion,
+                    userAnswer: userInputValue,
+                    isCorrect
+                }]);
+
+                setGameState('feedback');
+            };
+
+            const nextLevel = () => {
+                if (currentLevel >= TOTAL_LEVELS) {
+                    setGameState('finished');
+                } else {
+                    const nextLvl = currentLevel + 1;
+                    setCurrentLevel(nextLvl);
+                    setCurrentQuestion(generateQuestion(nextLvl));
+                    setUserInputValue('');
+                    setGameState('playing');
+                }
+            };
+
+            // 下載成績單
+            const downloadReport = () => {
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+                
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return;
+
+                // 清空畫布
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // 背景
+                const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                gradient.addColorStop(0, '#1e293b'); // slate-800
+                gradient.addColorStop(1, '#0f172a'); // slate-900
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // 邊框
+                ctx.strokeStyle = '#38bdf8'; // sky-400
+                ctx.lineWidth = 10;
+                ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
+
+                // 標題
+                ctx.fillStyle = '#f8fafc'; // white
+                ctx.font = 'bold 36px "Microsoft JhengHei", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('二進位特攻隊：解碼報告', canvas.width / 2, 80);
+
+                // 學生資訊區塊
+                ctx.fillStyle = '#1e293b'; // slate-800
+                ctx.beginPath();
+                ctx.roundRect(50, 110, canvas.width - 100, 60, 10);
+                ctx.fill();
+                ctx.strokeStyle = '#475569';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.fillStyle = '#e2e8f0'; // slate-200
+                ctx.font = 'bold 24px "Microsoft JhengHei", sans-serif';
+                ctx.fillText(`${studentClass}班  ${seatNumber}號  ${studentName}`, canvas.width / 2, 148);
+
+                // 分數圓圈
+                const circleY = 270;
+                ctx.beginPath();
+                ctx.arc(canvas.width / 2, circleY, 70, 0, 2 * Math.PI);
+                ctx.fillStyle = '#0f172a';
+                ctx.fill();
+                ctx.lineWidth = 5;
+                ctx.strokeStyle = '#22c55e'; // green-500
+                ctx.stroke();
+
+                ctx.fillStyle = '#22c55e';
+                ctx.font = 'bold 50px sans-serif';
+                ctx.fillText(`${score}分`, canvas.width / 2, circleY + 18);
+
+                // 評語
+                const { title, comment } = getFeedback(score);
+                ctx.fillStyle = '#38bdf8'; // sky-400
+                ctx.font = 'bold 32px "Microsoft JhengHei", sans-serif';
+                ctx.fillText(`稱號：${title}`, canvas.width / 2, 390);
+
+                ctx.fillStyle = '#94a3b8'; // slate-400
+                ctx.font = '22px "Microsoft JhengHei", sans-serif';
+                const words = comment.match(/.{1,22}/g) || [];
+                words.forEach((line, index) => {
+                    ctx.fillText(line, canvas.width / 2, 440 + (index * 30));
+                });
+
+                // 底部日期
+                ctx.fillStyle = '#64748b';
+                ctx.font = '18px sans-serif';
+                const date = new Date().toLocaleDateString('zh-TW');
+                ctx.fillText(`測驗日期: ${date}`, canvas.width / 2, 560);
+
+                // 下載
+                const link = document.createElement('a');
+                link.download = `二進位成績單_${studentClass}_${seatNumber}_${studentName}.png`;
+                link.href = canvas.toDataURL();
+                link.click();
+            };
+
+            const getFeedback = (finalScore) => {
+                if (finalScore === 100) return { title: "傳奇解碼師", comment: "太神了！所有二進位代碼在你眼中都無所遁形，你是最強的運算大腦！" };
+                if (finalScore >= 80) return { title: "資深特務", comment: "表現優異！你已經掌握了二進位的核心邏輯，足以面對大部分的數位挑戰。" };
+                if (finalScore >= 60) return { title: "解碼新星", comment: "做得很棒！雖然有些小失誤，但你已經具備了解碼的潛力，繼續加油！" };
+                return { title: "實習學員", comment: "別氣餒！二進位轉換需要多加練習，觀察 1, 2, 4, 8 的規律，你一定會進步的！" };
+            };
+
+            const renderBinaryVisual = (binaryStr) => {
+                const bits = binaryStr.split('');
+                const length = bits.length;
+                const showHints = currentLevel <= 3;
+                
+                return (
+                    <div className="flex flex-col items-center gap-2 mb-8">
+                        {showHints && (
+                            <div className="flex gap-2 mb-1 animate-fade-in">
+                                {bits.map((bit, idx) => {
+                                    const power = length - 1 - idx;
+                                    const value = Math.pow(2, power);
+                                    const isActive = bit === '1';
+                                    return (
+                                        <div key={`val-${idx}`} className={`w-10 text-center text-xs sm:text-sm font-bold ${isActive ? 'text-sky-400' : 'text-slate-600'}`}>
+                                            {value}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                        
+                        <div className="flex gap-2">
+                            {bits.map((bit, idx) => {
+                                const isActive = bit === '1';
+                                return (
+                                    <div 
+                                        key={`bit-${idx}`} 
+                                        className={`w-10 h-14 sm:w-12 sm:h-16 flex items-center justify-center text-2xl font-mono font-bold rounded-lg border-2 shadow-[0_0_10px_rgba(0,0,0,0.3)] transition-all duration-300
+                                            ${isActive 
+                                                ? 'bg-sky-900 border-sky-400 text-sky-100 shadow-[0_0_15px_rgba(56,189,248,0.5)]' 
+                                                : 'bg-slate-800 border-slate-600 text-slate-500'
+                                            }`}
+                                    >
+                                        {bit}
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {showHints && (
+                            <div className="mt-4 text-slate-400 text-sm animate-fade-in">
+                                <span className="text-sky-400 font-bold">亮起的數字</span> 相加就是答案！
+                            </div>
+                        )}
+                    </div>
+                );
+            };
+
+            // 1. 註冊畫面
+            if (gameState === 'registration') {
+                return (
+                    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+                        <div className="max-w-md w-full bg-slate-800 rounded-2xl p-8 shadow-2xl border border-slate-700 animate-zoom-in">
+                            <div className="flex justify-center mb-6">
+                                <div className="p-3 bg-sky-900/50 rounded-full">
+                                    <User size={48} className="text-sky-400" />
+                                </div>
+                            </div>
+                            <h2 className="text-2xl font-bold text-white text-center mb-2">特務身份登錄</h2>
+                            <p className="text-slate-400 text-center mb-8">請輸入你的基本資料以建立檔案</p>
+                            
+                            <form onSubmit={handleRegistration} className="space-y-4">
+                                <div>
+                                    <label className="block text-slate-300 mb-1 text-sm flex items-center gap-2">
+                                        <GraduationCap size={16}/> 班級 (Class)
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        required
+                                        value={studentClass}
+                                        onChange={(e) => setStudentClass(e.target.value)}
+                                        placeholder="例如：701"
+                                        className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg p-3 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-colors"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-slate-300 mb-1 text-sm flex items-center gap-2">
+                                        <Hash size={16}/> 座號 (Seat No.)
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        required
+                                        value={seatNumber}
+                                        onChange={(e) => setSeatNumber(e.target.value)}
+                                        placeholder="例如：05"
+                                        className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg p-3 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-colors"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-slate-300 mb-1 text-sm flex items-center gap-2">
+                                        <User size={16}/> 姓名 (Name)
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        required
+                                        value={studentName}
+                                        onChange={(e) => setStudentName(e.target.value)}
+                                        placeholder="請輸入姓名"
+                                        className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg p-3 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition-colors"
+                                    />
+                                </div>
+                                
+                                <button 
+                                    type="submit"
+                                    className="w-full mt-4 py-3 bg-sky-600 hover:bg-sky-500 text-white rounded-lg font-bold text-lg transition-colors shadow-lg"
+                                >
+                                    登錄並開始任務
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                );
+            }
+
+            // 2. 遊戲介紹畫面
+            if (gameState === 'intro') {
+                return (
+                    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+                        <div className="max-w-2xl w-full bg-slate-800 rounded-2xl p-8 shadow-2xl border border-slate-700 text-center animate-zoom-in">
+                            <div className="flex justify-center mb-6">
+                                <div className="p-4 bg-sky-900/50 rounded-full">
+                                    <Binary size={64} className="text-sky-400" />
+                                </div>
+                            </div>
+                            <h1 className="text-4xl font-bold text-white mb-4 tracking-wider">二進位特攻隊</h1>
+                            <h2 className="text-xl text-sky-300 mb-2">任務代號：10 進位解碼</h2>
+                            <p className="text-slate-400 mb-8">特務：{studentClass}班 {studentName}</p>
+                            
+                            <div className="bg-slate-700/50 rounded-xl p-6 mb-8 text-left space-y-3">
+                                <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
+                                    <Zap size={20} className="text-yellow-400"/> 任務說明：
+                                </h3>
+                                <p className="text-slate-300">1. 將螢幕上顯示的 <span className="text-sky-400 font-mono">二進位 (0/1)</span> 數字轉換成 <span className="text-green-400 font-mono">10 進位</span> 數字。</p>
+                                <p className="text-slate-300">2. 共有 <strong className="text-white">10 個關卡</strong>，數字會越來越長（最多 8 位元）。</p>
+                                <p className="text-slate-300">3. <strong>前 3 關</strong>會有提示輔助，之後就要靠自己囉！</p>
+                                <p className="text-slate-300 text-sm mt-4 bg-slate-800 p-3 rounded border border-slate-600">
+                                    💡 提示：每一位數代表 2 的倍數 (128, 64, 32, 16, 8, 4, 2, 1)。將所有 <span className="text-sky-400 font-bold">1</span> 代表的數字加起來就是答案。
+                                </p>
+                            </div>
+
+                            <button 
+                                onClick={startGame}
+                                className="w-full sm:w-auto px-8 py-4 bg-sky-500 hover:bg-sky-400 text-white rounded-xl font-bold text-xl transition-all shadow-[0_4px_0_rgb(14,165,233)] hover:translate-y-[2px] hover:shadow-[0_2px_0_rgb(14,165,233)] active:translate-y-[4px] active:shadow-none flex items-center justify-center gap-2 mx-auto"
+                            >
+                                <Play size={24} />
+                                接受任務
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
+            // 3. 結算畫面
+            if (gameState === 'finished') {
+                const { title, comment } = getFeedback(score);
+                return (
+                    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+                        <div className="max-w-md w-full bg-slate-800 rounded-2xl p-8 shadow-2xl border border-slate-700 text-center animate-fade-in">
+                            <div className="flex justify-center mb-6">
+                                <Trophy size={80} className="text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]" />
+                            </div>
+                            
+                            <h2 className="text-3xl font-bold text-white mb-2">任務完成！</h2>
+                            <p className="text-slate-400 mb-6">最終成績報告</p>
+                            
+                            <div className="bg-slate-900 rounded-xl p-6 mb-6 border border-slate-700 relative overflow-hidden">
+                                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-sky-500 to-green-500"></div>
+                                <div className="text-lg text-slate-300 mb-2">{studentClass}班 {studentName}</div>
+                                <div className="text-5xl font-bold text-white mb-2">{score} <span className="text-xl text-slate-500">分</span></div>
+                                <div className="text-xl text-sky-400 font-bold mb-4">階級：{title}</div>
+                                <p className="text-slate-300 text-sm leading-relaxed">{comment}</p>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4 mb-6">
+                                <div className="bg-slate-700/50 p-3 rounded-lg">
+                                    <div className="text-slate-400 text-xs">答對題數</div>
+                                    <div className="text-green-400 font-bold text-xl">{score/10} / 10</div>
+                                </div>
+                                <div className="bg-slate-700/50 p-3 rounded-lg">
+                                    <div className="text-slate-400 text-xs">最高難度</div>
+                                    <div className="text-sky-400 font-bold text-xl">8 Bits</div>
+                                </div>
+                            </div>
+
+                            <div className="space-y-3">
+                                <button 
+                                    onClick={downloadReport}
+                                    className="w-full py-3 bg-green-600 hover:bg-green-500 text-white rounded-lg font-bold flex items-center justify-center gap-2 transition-colors"
+                                >
+                                    <Download size={20} />
+                                    下載成績單
+                                </button>
+                                <button 
+                                    onClick={startGame}
+                                    className="w-full py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-bold flex items-center justify-center gap-2 transition-colors"
+                                >
+                                    <RefreshCw size={20} />
+                                    再次挑戰
+                                </button>
+                            </div>
+                            
+                            {/* Hidden Canvas for Image Generation */}
+                            <canvas ref={canvasRef} width={600} height={600} className="hidden" />
+                        </div>
+                    </div>
+                );
+            }
+
+            // 4. 遊戲主畫面
+            return (
+                <div className="min-h-screen bg-slate-900 flex flex-col items-center py-8 px-4 text-white font-sans">
+                    {/* 頂部資訊列 */}
+                    <div className="w-full max-w-2xl flex justify-between items-center mb-8 bg-slate-800 p-4 rounded-xl border border-slate-700">
+                        <div className="flex flex-col">
+                            <span className="text-slate-400 text-xs uppercase tracking-wider">Level</span>
+                            <span className="text-2xl font-bold text-white">{currentLevel} <span className="text-slate-500 text-lg">/ {TOTAL_LEVELS}</span></span>
+                        </div>
+                        <div className="flex flex-col items-center hidden sm:flex">
+                            <span className="text-slate-400 text-xs">特務</span>
+                            <span className="font-bold text-sky-300">{studentName}</span>
+                        </div>
+                        <div className="flex flex-col items-end">
+                            <span className="text-slate-400 text-xs uppercase tracking-wider">Score</span>
+                            <span className="text-2xl font-bold text-sky-400">{score}</span>
+                        </div>
+                    </div>
+
+                    {/* 主遊戲區 */}
+                    <div className="w-full max-w-2xl bg-slate-800 rounded-2xl p-6 sm:p-10 shadow-2xl border border-slate-700 relative overflow-hidden min-h-[400px] flex flex-col justify-center">
+                        
+                        {/* 背景裝飾 */}
+                        <div className="absolute top-0 right-0 p-4 opacity-5">
+                            <Binary size={200} />
+                        </div>
+
+                        {gameState === 'playing' && currentQuestion && (
+                            <div className="relative z-10 w-full animate-fade-in">
+                                <div className="text-center mb-6">
+                                    <h3 className="text-slate-400 text-sm mb-4">請將下方的二進位數字轉換為十進位</h3>
+                                    {renderBinaryVisual(currentQuestion.binaryString)}
+                                </div>
+
+                                <form onSubmit={handleSubmit} className="max-w-xs mx-auto">
+                                    <div className="relative mb-6">
+                                        <Calculator className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                                        <input
+                                            type="number"
+                                            inputMode="numeric"
+                                            value={userInputValue}
+                                            onChange={(e) => setUserInputValue(e.target.value)}
+                                            placeholder="輸入答案..."
+                                            autoFocus
+                                            className="w-full bg-slate-900 border-2 border-slate-600 focus:border-sky-500 text-white text-3xl font-bold py-4 pl-12 pr-4 rounded-xl outline-none transition-all text-center placeholder:text-slate-600 placeholder:text-xl"
+                                        />
+                                    </div>
+                                    <button 
+                                        type="submit"
+                                        disabled={!userInputValue}
+                                        className="w-full py-4 bg-sky-500 hover:bg-sky-400 disabled:bg-slate-700 disabled:text-slate-500 text-white rounded-xl font-bold text-xl transition-all shadow-lg active:scale-95"
+                                    >
+                                        確認解碼
+                                    </button>
+                                </form>
+                            </div>
+                        )}
+
+                        {gameState === 'feedback' && currentQuestion && (
+                            <div className="relative z-10 w-full text-center animate-zoom-in">
+                                <div className="mb-6 flex justify-center">
+                                    {lastCorrect ? (
+                                        <CheckCircle size={80} className="text-green-400" />
+                                    ) : (
+                                        <XCircle size={80} className="text-red-400" />
+                                    )}
+                                </div>
+                                
+                                <h3 className={`text-3xl font-bold mb-4 ${lastCorrect ? 'text-green-400' : 'text-red-400'}`}>
+                                    {lastCorrect ? '解碼成功！' : '解碼失敗'}
+                                </h3>
+
+                                {!lastCorrect && (
+                                    <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-600 mb-6 text-left inline-block">
+                                        <div className="text-slate-400 mb-1">正確答案是：</div>
+                                        <div className="text-2xl font-bold text-white mb-3">{currentQuestion.decimalValue}</div>
+                                        <div className="text-slate-400 text-sm">
+                                            計算式：
+                                            <span className="text-sky-300 font-mono block mt-1">
+                                                {currentQuestion.binaryString.split('').map((bit, idx) => {
+                                                    if (bit === '0') return null;
+                                                    const power = currentQuestion.binaryString.length - 1 - idx;
+                                                    return Math.pow(2, power);
+                                                }).filter(Boolean).join(' + ')} = {currentQuestion.decimalValue}
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <button 
+                                    onClick={nextLevel}
+                                    className="px-8 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-bold text-lg transition-colors flex items-center gap-2 mx-auto"
+                                >
+                                    {currentLevel >= TOTAL_LEVELS ? '查看成績' : '下一關'} <Play size={20} />
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* 進度條 */}
+                    <div className="w-full max-w-2xl mt-8">
+                        <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                            <div 
+                                className="h-full bg-gradient-to-r from-sky-500 to-blue-600 transition-all duration-500"
+                                style={{ width: `${(currentLevel / TOTAL_LEVELS) * 100}%` }}
+                            ></div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
